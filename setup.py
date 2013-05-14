@@ -15,6 +15,7 @@ except ImportError:
 # When building from a repo, Cython is required.
 if os.path.exists("MANIFEST.in"):
     print("MANIFEST.in found, presume a repo, cythonizing...")
+    print("Local dir:", os.getcwd(), "vars:", locals())
     if not cythonize:
         print(
             "Error: Cython.Build.cythonize not found. "
