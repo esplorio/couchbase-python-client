@@ -1,156 +1,118 @@
-COUCHBASE PYTHON LIBRARY
-========================
+Official Couchbase Python Client
+================================
 
-This library provides methods to connect to both the couchbase
-memcached interface and the couchbase rest api interface.
-
-This version requires Python 2.6 or later.
-
-You'll need to install the following Python library requirements via `pip`:
-
-    pip install requests
-
-Open Issues: http://www.couchbase.org/issues/browse/PYCBC
-
-[![Build Status](https://secure.travis-ci.org/couchbase/couchbase-python-client.png?branch=master)](http://travis-ci.org/couchbase/couchbase-python-client)
-
-USAGE
-=====
-
-Two simple use cases to set and get a key in the default bucket
-and then create a new bucket using the memcached and rest clients::
-
-    #!/usr/bin/env python
-
-    from couchbase.couchbaseclient import CouchbaseClient
-    from couchbase.rest_client import RestConnection
-
-    client = CouchbaseClient("http://localhost:8091/pools/default",
-                             "default", "", False)
-    client.set("key1", 0, 0, "value1")
-    client.get("key1")
-
-    server_info = {"ip": "localhost",
-                   "port": 8091,
-                   "username": "Administrator",
-                   "password": "password"}
-    rest = RestConnection(server_info)
-    rest.create_bucket(bucket='newbucket',
-                       ramQuotaMB=100,
-                       authType='none',
-                       saslPassword='',
-                       replicaNumber=1,
-                       proxyPort=11215,
-                       bucketType='membase')
-
-Example code that creates buckets and then does sets, gets and views using
-the unified client::
-
-    from couchbase import Couchbase
-
-    # connect to a couchbase server
-    cb = Couchbase('localhost:8091',
-                   username='Administrator',
-                   password='password')
-
-    # fetch a Bucket with subscript
-    default_bucket = cb['default']
-    # set a value with subscript (nearly equivalent to .set)
-    default_bucket['key1'] = 'value1'
-
-    # fetch a bucket with a function
-    default_bucket2 = cb.bucket('default')
-    # set a json value with subscript (nearly equivalent to .set)
-    default_bucket2['key2'] = {'value': 'value2', 'expiration': 0}
-
-    # set a value with a function
-    default_bucket.set('key3', 0, 0, 'value3')
-
-    # fetch a key with a function
-    print 'key1 ' + str(default_bucket.get('key1'))
-    print 'key2 ' + str(default_bucket2.get('key2'))
-    # fetch a key with subscript
-    print 'key3 ' + str(default_bucket2['key3'])
-
-    # create a new bucket
-    try:
-        newbucket = cb.create('newbucket', ram_quota_mb=100, replica=1)
-    except:
-        newbucket = cb['newbucket']
-
-    # set a JSON document using the more "pythonic" interface
-    newbucket['json_test'] = {'type': 'item', 'value': 'json test'}
-    print 'json_test ' + str(newbucket[doc_id])
-    # use the more verbose API which allows for setting expiration & flags
-    newbucket.set('key4', 0, 0, {'type': 'item', 'value': 'json test'})
-    print 'key4 ' + str(newbucket[doc_id])
-
-    design_doc = {"views":
-                  {"all_by_types":
-                   {"map":
-                    '''function (doc, meta) {
-                         emit([meta.type, doc.type, meta.id], doc.value);
-                         // row output: ['json', 'item', 'key4'], 'json test'
-                       }'''
-                    },
-                   },
-                  }
-    # save a design document
-    newbucket['_design/testing'] = design_doc
-
-    all_by_types_view = newbucket['_design/testing'].views()[0]
-    rows = all_by_types_view.results({'stale': False})
-    for row in rows:
-        print row
-
-    # delete the 'newbucket' bucket
-    cb.delete('newbucket')
+This is the new and improved Couchbase Python SDK. It is still in stages
+of development but is making rapid progress. It is based on the common
+C-based library [libcouchbase][1].
 
 
-RUNNING TESTS
-=============
+Prerequisites
+-------------
 
-Requirements:
-
-  * easy_install nose
-  * pip install nose-testconfig
-
-Thanks to nose's setup.py integration, test running is as simple as
-
-    python setup.py nosetests
-
-If you want to customize the nose settings which are stored in setup.cfg. The
-default will generate coverage reports (placed in './cover'), and stop on the
-first error found.
-
-Additionally, to run these tests on a version of Couchbase Server greater than
-1.8, you'll need to enable the `flush_all` setting.
-
-In 1.8.1 use `cbflushctl`:
-
-    cbflushctl localhost:11210 set flushall_enabled true
-
-In 2.0.0 use `cbepctl`:
-
-    cbepctl localhost:11210 set flush_param flushall_enabled true
+[libcouchbase][1] version 2.0.5 or greater.
 
 
-BASIC BENCHMARKING
-==================
+Building
+--------
 
-We like things to go fast, and we can't know how fast they're going
-without measuring them. To check the various Python SDK pieces against
-python-memcached and pylibc, we've created a simple cProfile-based
-performance reporting tool.
+In order to build this client, you need to have `libcouchbase` installed. Once
+this is done, you can now build the extension.
 
-To run this (on a *testing* cluster, *not* on dev or production), do:
+    python setup.py build_ext --inplace
 
-    python couchbase/benchmarks/benchmark.py
 
-To read the profile output do:
+If your libcouchbase install is in an alternate location (for example,
+`/opt/local/libcouchbase'), you may add extra directives, like so:
 
-    python couchbase/benchmarks/profiles/{name_of_profile_output_file}
+    python setup.py build_ext --inplace \
+        --library-dir /opt/local/libcouchbase/lib \
+        --include-dir /opt/local/libcouchbase/include
 
-It's early stage stuff as yet, but it should be helpful for quick
-progress comparison, and to help track down places the SDK can improve.
+Or you can modify the environment `CFLAGS` and `LDFLAGS` variables.
 
+
+Running sample application
+--------------------------
+
+To run the small sample application that inserts one million documents into
+a local Couchbase at the default port 8091 and a bucket called "default",
+just execute:
+
+    python examples/basic.py
+
+If you do not with to install the package just yet, remember to set the
+`$PYTHONPATH` environment variable so the example scripts can load the
+module:
+
+    PYTHONPATH=$PWD python examples/basic.py
+
+
+Building documentaion
+---------------------
+
+The documentation is using Sphinx and also needs the numpydoc Sphinx extension.
+To build the documentation, go into the `docs` directory and run:
+
+    make html
+
+The HTML output can be found in `docs/build/html/`.
+
+
+Running tests
+-------------
+
+The tests need a running Couchbase instance. For this, a `tests/tests.ini`
+file must be present, containing various connection parameters.
+ An example of this file may be found in `tests/tests.ini.sample`.
+You may copy this file to `tests/tests.ini` and modify the values as needed.
+
+The test suite need several buckets which need to be created before the tests
+are run. They will all have the common prefix as specified in the test
+configuration file. To create them, run:
+
+    python tests/setup_tests.py
+
+To run the tests:
+
+    nosetests
+
+Tested platforms
+----------------
+
+So far the code has been tested on the following platforms/environments.
+
+Linux 64-bit (with GCC):
+ - Python 2.7.3
+ - Python 3.2.3
+ - Python 2.6.6
+
+Mac OS X 10.6.8
+ - Python 2.6.1
+ - Python 3.3.1
+
+Microsoft Windows 2008 R2 (MSVC 2008/VC9)
+ - Python 2.7.3 (x86)
+ - Python 2.7.4 (x64)
+
+
+If you ran it on a different platform and it worked, please let me know and
+I'll add it to the list.
+
+
+Support
+-------
+
+If you found an issue, please file it in our [JIRA][2]. You may also ask in the
+`#libcouchbase` IRC channel at [freenode.net IRC servers][3] (which is where
+the author(s) of this module may be found).
+
+License
+-------
+
+The Couchbase Python SDK is licensed under the Apache License 2.0.
+
+
+
+[1]: http://couchbase.com/develop/c/current
+[2]: http://couchbase.com/issues/browse/PYCBC
+[3]: http://freenode.net/irc_servers.shtml
